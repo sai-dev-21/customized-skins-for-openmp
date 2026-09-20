@@ -1,88 +1,59 @@
 # open.mp Custom Skins
 
-A reusable custom skin system for [open.mp](https://open.mp/) servers, built as a standalone filterscript.
+A simple custom character skin system for **open.mp gamemodes** using the built-in artwork/model system.
 
-It allows server owners to register custom `.dff` and `.txd` character models and use them as player skins without modifying their existing gamemode.
+This allows you to add custom `.dff` and `.txd` character models to your gamemode so players can automatically download and cache them when they join your server.
 
 ## Features
 
-* Standalone filterscript
-* Works with existing open.mp gamemodes
-* Custom `.dff` + `.txd` character models
-* Automatic model downloading through open.mp artwork
-* Client-side caching of downloaded models
-* Custom skin IDs
-* Easy skin registration
-* No changes required to the main gamemode
+* Custom player character models
+* `.dff` + `.txd` support
+* Automatic client downloads through open.mp artwork
+* Local caching on the player's client
+* Works directly inside your gamemode
+* No external client modification required
+* Simple `AddCharModel()` registration
+* Works with existing `SetPlayerSkin()` logic
+
+---
 
 ## Requirements
 
-* [open.mp Server](https://open.mp/)
-* open.mp client
-* A valid custom GTA San Andreas character model
-* `.dff` and `.txd` files for the model
+* [open.mp](https://open.mp/) server
+* open.mp-compatible Pawn compiler
+* Valid GTA San Andreas character `.dff` and `.txd` files
+
+---
 
 ## Installation
 
-### 1. Download the repository
+### 1. Add your model files
 
-Clone the repository or download it as a ZIP.
-
-```bash
-git clone https://github.com/YOUR_USERNAME/openmp-custom-skins.git
-```
-
-### 2. Copy the filterscript
-
-Copy:
-
-```text
-customskins.pwn
-```
-
-into your server's:
-
-```text
-filterscripts/
-```
-
-Compile the filterscript using your open.mp Pawn compiler.
-
-You should get:
-
-```text
-filterscripts/customskins.amx
-```
-
-### 3. Create the models folder
-
-Your server should have:
-
-```text
-server/
-├── config.json
-├── filterscripts/
-│   └── customskins.amx
-└── models/
-```
-
-Place your custom character models inside the `models` folder.
+Place your custom character files inside the server's `models` folder.
 
 Example:
 
 ```text
-models/
-├── police01.dff
-├── police01.txd
-├── medic01.dff
-└── medic01.txd
+server/
+├── config.json
+├── gamemodes/
+│   └── mygamemode.amx
+└── models/
+    ├── police01.dff
+    ├── police01.txd
+    ├── medic01.dff
+    └── medic01.txd
 ```
 
-### 4. Enable open.mp artwork
+The `.dff` and `.txd` filenames must match the names you register in the gamemode.
+
+---
+
+## 2. Enable artwork
 
 Open your `config.json`.
 
-Make sure artwork is enabled:
+Make sure this is enabled:
 
 ```json
 "artwork": {
@@ -92,153 +63,154 @@ Make sure artwork is enabled:
 }
 ```
 
-If you are already using the default open.mp artwork configuration, you normally don't need to change anything.
+If your server already has artwork enabled, you don't need to change anything.
 
-### 5. Enable the filterscript
+---
 
-In `config.json`, find:
+## 3. Register your custom models
 
-```json
-"pawn": {
-    "main_scripts": [
-        "yourgamemode 1"
-    ],
-    "side_scripts": []
+Open your main gamemode source:
+
+```text
+gamemodes/mygamemode.pwn
+```
+
+Add your custom model IDs near your other definitions:
+
+```pawn
+#define SKIN_POLICE 20001
+#define SKIN_MEDIC  20002
+```
+
+Then register the models inside `OnGameModeInit()`:
+
+```pawn
+public OnGameModeInit()
+{
+    AddCharModel(305, SKIN_POLICE, "police01.dff", "police01.txd");
+    AddCharModel(274, SKIN_MEDIC, "medic01.dff", "medic01.txd");
+
+    return 1;
 }
 ```
 
-Add `customskins` to `side_scripts`:
+### What is `AddCharModel()`?
 
-```json
-"pawn": {
-    "main_scripts": [
-        "yourgamemode 1"
-    ],
-    "side_scripts": [
-        "customskins 1"
-    ]
-}
+```pawn
+AddCharModel(baseid, newid, dffname, txdname);
 ```
-
-Your existing gamemode stays untouched.
-
-## Registering a Custom Skin
-
-Inside `customskins.pwn`, register your model using `AddCharModel`.
 
 Example:
 
 ```pawn
-#define SKIN_POLICE 20001
-
-AddCharModel(
-    305,
-    SKIN_POLICE,
-    "police01.dff",
-    "police01.txd"
-);
+AddCharModel(305, 20001, "police01.dff", "police01.txd");
 ```
 
-### Parameters
+| Parameter | Description                          |
+| --------- | ------------------------------------ |
+| `baseid`  | GTA character model used as the base |
+| `newid`   | Your custom model ID                 |
+| `dffname` | Custom `.dff` filename               |
+| `txdname` | Custom `.txd` filename               |
 
-```text
-AddCharModel(baseid, newid, dffname, txdname);
-```
+Use a custom model ID in the range supported by open.mp.
 
-* `baseid` — GTA character model used as the base
-* `newid` — custom model ID
-* `dffname` — `.dff` model filename
-* `txdname` — `.txd` texture filename
+---
 
-Use a custom model ID in the range supported by your open.mp version.
+## 4. Give the custom skin to a player
 
-## Assigning a Custom Skin
+After registering the model, use the custom ID with `SetPlayerSkin()`.
 
-Once the model has been registered, assign it to a player:
+Example:
 
 ```pawn
 SetPlayerSkin(playerid, SKIN_POLICE);
 ```
 
-For example:
+For example, inside `OnPlayerSpawn()`:
 
 ```pawn
 public OnPlayerSpawn(playerid)
 {
     SetPlayerSkin(playerid, SKIN_POLICE);
+
     return 1;
 }
 ```
 
-The player will then use the custom character model.
+The player will now use the custom police model.
 
-## How Downloads Work
+---
 
-When a player joins your server, open.mp checks whether the required custom model is available locally.
+# How the download system works
 
-```text
-Player joins
-     |
-     v
-Server advertises custom models
-     |
-     v
-Client checks local files
-     |
-     +---- Already cached ----> Load model
-     |
-     +---- Not cached --------> Download
-                                  |
-                                  v
-                              Cache locally
-                                  |
-                                  v
-                              Load model
-```
+You don't need to manually send the `.dff` or `.txd` files to players.
 
-Players don't need to manually download every model.
-
-After a model has been downloaded, the client can use the cached resource on future connections.
-
-## Example
-
-Suppose your server has:
+open.mp handles the artwork download process.
 
 ```text
-models/
-├── police01.dff
-├── police01.txd
-├── medic01.dff
-└── medic01.txd
+              PLAYER JOINS
+                   |
+                   v
+          Server advertises model
+                   |
+                   v
+          Client checks local cache
+              /          \
+             /            \
+        Already exists    Missing
+             |              |
+             v              v
+        Load model       Download
+                            |
+                            v
+                       Cache locally
+                            |
+                            v
+                         Load model
 ```
 
-Register them:
+The first time a player joins, the required files are downloaded.
+
+On later connections, the client can use the cached files instead of downloading them again.
+
+---
+
+# Multiple custom skins
+
+You can register as many custom character models as your server needs.
+
+Example:
 
 ```pawn
-#define SKIN_POLICE 20001
-#define SKIN_MEDIC  20002
+#define SKIN_POLICE     20001
+#define SKIN_MEDIC      20002
+#define SKIN_SECURITY   20003
+#define SKIN_MECHANIC   20004
+#define SKIN_GANG       20005
 
 public OnGameModeInit()
 {
-    AddCharModel(
-        305,
-        SKIN_POLICE,
-        "police01.dff",
-        "police01.txd"
-    );
+    AddCharModel(305, SKIN_POLICE,
+        "police01.dff", "police01.txd");
 
-    AddCharModel(
-        274,
-        SKIN_MEDIC,
-        "medic01.dff",
-        "medic01.txd"
-    );
+    AddCharModel(274, SKIN_MEDIC,
+        "medic01.dff", "medic01.txd");
+
+    AddCharModel(280, SKIN_SECURITY,
+        "security01.dff", "security01.txd");
+
+    AddCharModel(50, SKIN_MECHANIC,
+        "mechanic01.dff", "mechanic01.txd");
+
+    AddCharModel(105, SKIN_GANG,
+        "gang01.dff", "gang01.txd");
 
     return 1;
 }
 ```
 
-Then assign them:
+Then:
 
 ```pawn
 SetPlayerSkin(playerid, SKIN_POLICE);
@@ -250,66 +222,144 @@ or:
 SetPlayerSkin(playerid, SKIN_MEDIC);
 ```
 
-## Important
+---
 
-### Custom model files
+# Using it with factions
 
-This repository does **not** provide copyrighted GTA San Andreas character models.
+You can assign different models depending on the player's faction.
 
-Only use `.dff` and `.txd` files that you created yourself or have permission to redistribute.
+Example:
 
-### Model compatibility
+```pawn
+if(PlayerInfo[playerid][pFaction] == FACTION_POLICE)
+{
+    SetPlayerSkin(playerid, SKIN_POLICE);
+}
+```
 
-Your custom character model needs to be compatible with GTA San Andreas character-model requirements and the animations/base model you are using.
+Another faction:
 
-### Server port
+```pawn
+if(PlayerInfo[playerid][pFaction] == FACTION_MEDIC)
+{
+    SetPlayerSkin(playerid, SKIN_MEDIC);
+}
+```
 
-The artwork server needs to be reachable by clients.
+This means your existing faction/roleplay systems can use custom models without needing a separate skin system.
 
-If your game server uses:
+---
+
+# Important
+
+## Model files
+
+Do not include copyrighted GTA San Andreas models or other people's custom models in your repository unless you have permission to redistribute them.
+
+Only use:
+
+* Models you created yourself
+* Models you have permission to redistribute
+* Models whose license explicitly allows redistribution
+
+## File names
+
+Make sure the filenames match exactly.
+
+For example:
+
+```pawn
+AddCharModel(305, 20001, "police01.dff", "police01.txd");
+```
+
+requires:
+
+```text
+models/
+├── police01.dff
+└── police01.txd
+```
+
+## Port
+
+Your artwork server must be reachable by players.
+
+If your server uses:
 
 ```text
 7777
 ```
 
-and your artwork configuration also uses:
+make sure the required port is available through your hosting/firewall configuration.
 
-```json
-"port": 7777
-```
+---
 
-make sure your hosting/network configuration allows the required connection.
+# Example Complete Setup
 
-## Project Structure
+### Server
 
 ```text
-openmp-custom-skins/
+my-server/
 │
-├── customskins.pwn
-├── include/
-│   └── customskins.inc
-├── models/
-│   └── README.md
-├── README.md
-├── LICENSE
-└── .gitignore
+├── config.json
+│
+├── gamemodes/
+│   ├── mygamemode.pwn
+│   └── mygamemode.amx
+│
+└── models/
+    ├── police01.dff
+    ├── police01.txd
+    ├── medic01.dff
+    └── medic01.txd
 ```
+
+### config.json
+
+```json
+"artwork": {
+    "enable": true,
+    "models_path": "models",
+    "port": 7777
+}
+```
+
+### Gamemode
+
+```pawn
+#define SKIN_POLICE 20001
+#define SKIN_MEDIC  20002
+
+public OnGameModeInit()
+{
+    AddCharModel(305, SKIN_POLICE,
+        "police01.dff", "police01.txd");
+
+    AddCharModel(274, SKIN_MEDIC,
+        "medic01.dff", "medic01.txd");
+
+    return 1;
+}
+```
+
+### Assign the skin
+
+```pawn
+SetPlayerSkin(playerid, SKIN_POLICE);
+```
+
+That's it.
+
+The custom model is registered by the gamemode, open.mp handles the artwork download, and the client caches the required files locally.
+
+---
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the **MIT License**.
 
-See [LICENSE](LICENSE) for the complete license text.
-
-## Contributing
-
-Pull requests and improvements are welcome.
-
-If you find a bug or have an idea for a new feature, open an issue or submit a pull request.
+See [`LICENSE`](LICENSE) for the complete license text.
 
 ## Credits
 
-Built for the open.mp community.
-
-* open.mp — multiplayer framework
-* GTA San Andreas — original game and model format
+Built for the **open.mp** community.
